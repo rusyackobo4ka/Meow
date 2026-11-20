@@ -50,7 +50,7 @@ class DialogManager:
                 response += EXPLAINING_PHRASES["chair_main"].format( title = listing.title, price_rub = listing.price_rub ) + ' '
                 response += EXPLAINING_PHRASES["adjustable_height"]
             if color_temp is not None:
-                response += EXPLAINING_PHRASES["color_temperature_k"].format( title = lissting.title, price_rub = listing.price_rub, value = color_temp ) + ' '
+                response += EXPLAINING_PHRASES["color_temperature_k"].format( title = listing.title, price_rub = listing.price_rub, value = color_temp ) + ' '
 
             response += EXPLAINING_PHRASES["end_phrase"].format( city_id = cond.city_id, total = kit.total_rub(), total_limit = cond.budget_rub )
 
