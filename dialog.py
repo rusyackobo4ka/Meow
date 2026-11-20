@@ -38,13 +38,6 @@ class DialogManager:
             "end_phrase": "Всё в {city_id}, итого {total} ₽ при бюджете {total_limit} ₽."
         }
 
-        const = cond.constraints
-        """
-        Стол «Письменный стол» (123123) шириной 95 см, что укладывается в ваш лимит 100 см.
-        Кресло «Рабочее кресло» с регулировкой высоты.
-        Лампа «Настольная лампа», свет 4000 К.
-        Всё в Таганроге, итого 12 200 ₽ при бюджете 15 000 ₽.
-        """
         response = f""
         for listing in kit:
             width = item.attributes.get("width_cm")
@@ -52,8 +45,14 @@ class DialogManager:
             color_temp = item.attributes.get("color_temperature_k")
 
             if width is not None:
-                response += EXPLAINING_PHRASES["width_cm"].format( title = listing.title, price_rub = listing.price_rub, width = listing.attributes["width_cm"] )
+                response += EXPLAINING_PHRASES["width_cm"].format( title = listing.title, price_rub = listing.price_rub, width = listing.attributes["width_cm"] ) + ' '
+            if ah is not None:
+                response += EXPLAINING_PHRASES["chair_main"].format( title = listing.title, price_rub = listing.price_rub ) + ' '
+                response += EXPLAINING_PHRASES["adjustable_height"]
+            if color_temp is not None:
+                response += EXPLAINING_PHRASES["color_temperature_k"].format( title = lissting.title, price_rub = listing.price_rub, value = color_temp ) + ' '
 
+            response += EXPLAINING_PHRASES["end_phrase"].format( city_id = cond.city_id, total = kit.total_rub(), total_limit = cond.budget_rub )
 
         return response
 
