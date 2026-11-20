@@ -1,18 +1,25 @@
-"""Разработчик 1: клиент модели Gemma через API организаторов."""
+"""Разработчик 1: клиент модели Gemma через API организаторов.
+
+Конфигурация приходит снаружи (см. config.LLMConfig). Env здесь не читается.
+"""
 from __future__ import annotations
+
+from config import LLMConfig
+
+DEFAULT_TIMEOUT_S = 90
+MAX_INPUT_BYTES = 32 * 1024
 
 
 class LLMClient:
-    """Настройки читаются из LLM_BASE_URL, LLM_MODEL, LLM_API_KEY, LLM_USER_AGENT. Ключ в код не писать."""
-
-    def __init__(self) -> None:
-        # TODO: прочитать переменные окружения, проверить, что ключ задан
-        raise NotImplementedError
+    def __init__(self, config: LLMConfig) -> None:
+        self.config = config
 
     def complete_json(self, messages: list[dict], schema: dict, max_tokens: int = 256) -> dict:
-        """Один вызов модели с response_format=json_schema (strict). Вернуть разобранный JSON.
+        """Один вызов модели с response_format=json_schema (strict).
 
-        messages: [{"role": "system"|"user"|"assistant", "content": "..."}]
-        Лимиты: до 32 КБ текста, до 90 с, до 20 запросов в минуту.
+        Заголовки:
+          Authorization: Bearer {self.config.api_key}
+          User-Agent: {self.config.user_agent}
+        Лимиты: ≤32 КБ входа, ≤90 с, ≤20 запросов/мин.
         """
         raise NotImplementedError
