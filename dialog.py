@@ -11,7 +11,7 @@ class DialogManager:
         questions = []
         QUESTION_TEXTS = {
             "budget_rub": "Какой у вас бюджет на весь комплект, в рублях?",
-            "city_id": "В каком городе вам удобен самовывоз? Доступны Таганрог, Ростов-на-Дону и Азов.",
+            "city_id": "В каком городе вам удобен самовывоз? Доступны Таганрог, Ростов-на-Дону и Азов.", # TODO 1
             "categories": "Какие предметы вам нужны? Можно выбрать стол, кресло и лампу.",
         }
         if cond.city_id is None:
@@ -58,17 +58,55 @@ class DialogManager:
 
     def no_match_message(self, cond: Conditions) -> str:
         """Что мешает найти комплект и что покупатель может изменить."""
-        raise NotImplementedError
+        """Вызывается если все поля пустые"""
 
+        response = "По вашему поисковому запросу не было найдено ни одного подоходящего объявления. Попробуйте изменить или уточнить условия и выполнить поиск заново."
+
+        return response
 
 class ResponseBuilder:
     """Собирает ответ строго по schemas/response.schema.json."""
 
     def clarify(self, questions: list[Question]) -> dict:
-        raise NotImplementedError
+        LLMAnswer = {
+            "status": "clarify",
+            "questions": []
+        }
+
+        for question in questions:
+            LLMAnswer[questions].append(
+                {
+                    "field": question.field,
+                    "text": question.text
+                }
+            )
+
+        return LLMAnswer
 
     def ok(self, kits: list[Kit], explanations: list[str]) -> dict:
-        raise NotImplementedError
+        LLMAnswer = {
+            "status": "ok",
+            "options": []
+        }
+
+        for i in range(len(explanations)):
+            kit = kits[i]
+            exp = explanations[i]
+
+            LLMAnswer["options"].append(
+                {
+                    "listing_ids": kit.listing_ids(),
+                    "total_rub": kit.total_rub(),
+                    "explanation": exp
+                }
+            )
+
+        return LLMAnswer
 
     def no_match(self, message: str) -> dict:
-        raise NotImplementedError
+        LLMAnswer = {
+            "status": "no_match",
+            "message": message
+        }
+
+        return LLMAnswer
