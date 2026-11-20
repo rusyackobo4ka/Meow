@@ -4,23 +4,23 @@ from __future__ import annotations
 from catalog import Catalog
 from dialog import DialogManager, ResponseBuilder
 from extract import ConditionExtractor
-from llm_client import LLMClient
 from selector import KitSelector
 
 
 class BuyerAssistant:
-    def __init__(self, catalog: Catalog, extractor: ConditionExtractor,
-                 dialog: DialogManager, selector: KitSelector, builder: ResponseBuilder) -> None:
+    def __init__(
+        self,
+        catalog: Catalog,
+        extractor: ConditionExtractor,
+        dialog: DialogManager,
+        selector: KitSelector,
+        builder: ResponseBuilder,
+    ) -> None:
         self.catalog = catalog
         self.extractor = extractor
         self.dialog = dialog
         self.selector = selector
         self.builder = builder
-
-    @classmethod
-    def create(cls, catalog_path: str) -> "BuyerAssistant":
-        return cls(Catalog.load(catalog_path), ConditionExtractor(LLMClient()),
-                   DialogManager(), KitSelector(), ResponseBuilder())
 
     def handle(self, request: dict) -> dict:
         """Один запрос -> один ответ (clarify, ok или no_match)."""
