@@ -40,9 +40,9 @@ class DialogManager:
 
         response = f""
         for listing in kit:
-            width = item.attributes.get("width_cm")
-            ah = item.attributes.get("adjustable_height")
-            color_temp = item.attributes.get("color_temperature_k")
+            width = listing.attributes.get("width_cm")
+            ah = listing.attributes.get("adjustable_height")
+            color_temp = listing.attributes.get("color_temperature_k")
 
             if width is not None:
                 response += EXPLAINING_PHRASES["width_cm"].format( title = listing.title, price_rub = listing.price_rub, width = listing.attributes["width_cm"] ) + ' '
