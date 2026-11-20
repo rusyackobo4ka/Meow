@@ -5,13 +5,26 @@ from models import Conditions, Kit, Question
 
 
 class DialogManager:
+
+    CITY_NAMES = {
+            "taganrog": "Таганроге",
+            "rostov-na-donu": "Ростове-на-Дону",
+            "azov": "Азове"
+        }
+
+    CATEGORY_NAMES = {
+        "table": "Стол",
+        "chair": "Стул",
+        "lamp": "Лампа"
+    }
+
     def find_missing(self, cond: Conditions) -> list[Question]:
         """Вопросы для clarify по недостающим budget_rub, city_id, categories (каждое поле один раз)."""
 
         questions = []
         QUESTION_TEXTS = {
             "budget_rub": "Какой у вас бюджет на весь комплект, в рублях?",
-            "city_id": "В каком городе вам удобен самовывоз? Доступны Таганрог, Ростов-на-Дону и Азов.", # TODO 1
+            "city_id": "В каком городе вам удобен самовывоз? Доступны Таганрог, Ростов-на-Дону и Азов.",
             "categories": "Какие предметы вам нужны? Можно выбрать стол, кресло и лампу.",
         }
         if cond.city_id is None:
@@ -27,40 +40,78 @@ class DialogManager:
         """Понятное объяснение комплекта на данных каталога (цена, город, характеристики)."""
         """Kit - это то, что у нас есть в iteme, а cond - это то, что user хочет получить"""
 
+        # Стол «Письменный стол» (6 500 ₽) шириной 95 см, что укладывается в ваш лимит 100 см.
         EXPLAINING_PHRASES = {
-            "width_cm": "Стол «{title}» ({price_rub} ₽) шириной {width} см, что укладывается в ваш лимит {width_limit} см.",
-            "color_temperature_k": "Лампа «{title}» ({price_rub} ₽) со светом {value} K",
-            "chair_main": "Кресло «{title}» ({price_rub} ₽) ",
+            "main_phrase": "{category} «{title}» ({price} ₽)",
+            "width_cm": "шириной {value} см",
+            "color_temperature_k": "свет {value} K",
             "adjustable_height": {
                 True: "с регулировкой высоты",
                 False: "без регулировки высоты"
             },
-            "end_phrase": "Всё в {city_id}, итого {total} ₽ при бюджете {total_limit} ₽."
+            "end_phrase": "Всё в {city}, итого {total} ₽ при бюджете {total_limit} ₽",
+
+            "width_limit": "что укладывается в ваш лимит {value} см",
+            "width_limit_segment": "что укладывается в ваш диапазон от {start_val} до {end_val} см",
+
+            "color_limit_upper": "не выше {value} K, как вы и просили",
+            "color_limit_lower": "не ниже {value} K, как вы и просили",
+            "color_limit_segment": "в нужном вам диапазоне от {start_val} до {end_val} K"
         }
 
         response = f""
-        for listing in kit:
-            width = item.attributes.get("width_cm")
-            ah = item.attributes.get("adjustable_height")
-            color_temp = item.attributes.get("color_temperature_k")
+        for listing in kit.items:
+            width = listing.attributes.get("width_cm")
+            ah = listing.attributes.get("adjustable_height")
+            color_temp = listing.attributes.get("color_temperature_k")
 
+            response += EXPLAINING_PHRASES["main_phrase"].format( category = self.CATEGORY_NAMES[listing.category], title = listing.title, price = listing.price_rub )
             if width is not None:
-                response += EXPLAINING_PHRASES["width_cm"].format( title = listing.title, price_rub = listing.price_rub, width = listing.attributes["width_cm"] ) + ' '
-            if ah is not None:
-                response += EXPLAINING_PHRASES["chair_main"].format( title = listing.title, price_rub = listing.price_rub ) + ' '
-                response += EXPLAINING_PHRASES["adjustable_height"]
-            if color_temp is not None:
-                response += EXPLAINING_PHRASES["color_temperature_k"].format( title = lissting.title, price_rub = listing.price_rub, value = color_temp ) + ' '
+                response += ' ' + EXPLAINING_PHRASES["width_cm"].format( value = width )
+                limits = [c for c in cond.constraints if c.category == "table" and c.key == "width_cm"]
+                upper = [c for c in limits if c.op in ("lte", "lt")]
+                lower = [c for c in limits if c.op in ("gte", "gt")]
+                if upper and lower:
+                    response += ", " + EXPLAINING_PHRASES["width_limit_segment"].format( start_val = lower[0].value, end_val = upper[0].value )
+                elif upper:
+                    response += ", " + EXPLAINING_PHRASES["width_limit"].format( value = upper[0].value )
 
-            response += EXPLAINING_PHRASES["end_phrase"].format( city_id = cond.city_id, total = kit.total_rub(), total_limit = cond.budget_rub )
+            if ah is not None:
+                response += ' ' + EXPLAINING_PHRASES["adjustable_height"][ah]
+
+            if color_temp is not None:
+                response += ' ' + EXPLAINING_PHRASES["color_temperature_k"].format( value = color_temp )
+                limits = [c for c in cond.constraints if c.category == "lamp" and c.key == "color_temperature_k"]
+                upper = [c for c in limits if c.op in ("lte", "lt")]
+                lower = [c for c in limits if c.op in ("gte", "gt")]
+                if upper and lower:
+                    response += ", " +  EXPLAINING_PHRASES["color_limit_segment"].format( start_val = lower[0].value, end_val = upper[0].value )
+                elif upper and not lower:
+                    response += ", " +  EXPLAINING_PHRASES["color_limit_upper"].format( value = upper[0].value )
+                elif not upper and lower:
+                    response += ", " +  EXPLAINING_PHRASES["color_limit_lower"].format( value = lower[0].value )
+
+            response += ". "
+        response += EXPLAINING_PHRASES["end_phrase"].format( city = self.CITY_NAMES[cond.city_id], total = kit.total_rub, total_limit = cond.budget_rub ) + '.'
 
         return response
 
     def no_match_message(self, cond: Conditions) -> str:
         """Что мешает найти комплект и что покупатель может изменить."""
-        """Вызывается если все поля пустые"""
 
-        response = "По вашему поисковому запросу не было найдено ни одного подоходящего объявления. Попробуйте изменить или уточнить условия и выполнить поиск заново."
+        names = [self.CATEGORY_NAMES[c].lower() for c in cond.categories]
+        budget = f"{cond.budget_rub:,}".replace(',', ' ')
+        response = f"В {self.CITY_NAMES[cond.city_id]} не нашлось полного комплекта ({', '.join(names)}) в бюджете {budget} ₽"
+        if cond.constraints:
+            response += " с вашими ограничениями по характеристикам. "
+        else:
+            response += ". "
+
+        options = ["увеличить бюджет", "рассмотреть другой город"]
+        if cond.constraints:
+            options.append("смягчить ограничения")
+
+        response += f"Можно {', '.join(options[:-1])} или {options[-1]}. Скажите, что вам подходит."     
 
         return response
 
@@ -74,7 +125,7 @@ class ResponseBuilder:
         }
 
         for question in questions:
-            LLMAnswer[questions].append(
+            LLMAnswer["questions"].append(
                 {
                     "field": question.field,
                     "text": question.text
@@ -95,8 +146,8 @@ class ResponseBuilder:
 
             LLMAnswer["options"].append(
                 {
-                    "listing_ids": kit.listing_ids(),
-                    "total_rub": kit.total_rub(),
+                    "listing_ids": kit.listing_ids,
+                    "total_rub": kit.total_rub,
                     "explanation": exp
                 }
             )
