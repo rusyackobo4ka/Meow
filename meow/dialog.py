@@ -204,3 +204,5 @@ class ResponseBuilder:
             "status": "off-topic",
             "message": message
         }
+
+        return LLMAnswer
