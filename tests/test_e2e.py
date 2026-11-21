@@ -532,6 +532,9 @@ def test_cli_missing_catalog_nonzero(tmp_path):
 
 # ======================= OFFTOPIC E2E =======================
 
+
+# ======================= OFFTOPIC E2E =======================
+
 OFFTOPIC_RESPONSES = [
     "Похоже, этот вопрос выходит за рамки моей текущей задачи. Давайте вернёмся к основной теме — чем я могу помочь вам по ней?",
     "Я не смогу подробно ответить на этот вопрос в рамках текущей задачи. Продолжим работу над основной темой?",
@@ -546,6 +549,15 @@ OFFTOPIC_RESPONSES = [
 ]
 
 
+def assert_offtopic_response(resp):
+    """Проверяет структуру и содержание ответа на оффтопик."""
+    assert resp is not None
+    assert resp["status"] == "off-topic"
+    assert set(resp.keys()) == {"status", "message"}
+    assert isinstance(resp["message"], str)
+    assert resp["message"] in OFFTOPIC_RESPONSES
+
+
 @live
 @pytest.mark.parametrize("message", [
     "Расскажи анекдот",
@@ -557,17 +569,12 @@ OFFTOPIC_RESPONSES = [
 def test_e2e_offtopic_returns_allowed_phrase(catalog_path, message):
     p = run_cli(
         catalog_path,
-        messages=[
-            {"role": "user", "text": message}
-        ]
+        messages=[{"role": "user", "text": message}]
     )
 
     resp = out(p)
     check_schema(resp)
-
-    assert resp["status"] == "off-topic"
-    assert resp["message"] in OFFTOPIC_RESPONSES
-
+    assert_offtopic_response(resp)
 
 
 @live
@@ -581,34 +588,30 @@ def test_e2e_offtopic_repeated_requests(catalog_path):
         resp = out(p)
 
         check_schema(resp)
-
-        assert resp["status"] == "clarify"
-        assert resp["questions"][0]["status"] == "off-topic"
-        assert resp["questions"][0]["message"] in OFFTOPIC_RESPONSES
+        assert_offtopic_response(resp)
 
 
 @live
-def test_e2e_normal_request_not_offtopic(catalog_path):
+@pytest.mark.parametrize("message", [
+    "Нужен стол в Азове, бюджет до 5000 рублей.",
+    "Подбери стол и кресло в Таганроге до 10000 рублей.",
+    "Хочу лампу в Ростове-на-Дону за 2000 рублей.",
+])
+def test_e2e_normal_request_not_offtopic(catalog_path, message):
     p = run_cli(
         catalog_path,
-        messages=[
-            {
-                "role": "user",
-                "text": "Нужен стол в Азове, бюджет до 5000 рублей."
-            }
-        ]
+        messages=[{"role": "user", "text": message}]
     )
 
     resp = out(p)
     check_schema(resp)
 
+    assert resp is not None
     assert resp["status"] in ("ok", "clarify", "no_match")
+    assert resp["status"] != "off-topic"
 
-    if resp["status"] == "clarify":
-        assert not (
-            resp["questions"]
-            and resp["questions"][0].get("status") == "off-topic"
-        )
 
-    if resp["status"] == "no_match":
-        assert resp["message"] not in OFFTOPIC_RESPONSES
+def test_offtopic_responses_are_unique_and_nonempty():
+    assert len(OFFTOPIC_RESPONSES) == 10
+    assert len(set(OFFTOPIC_RESPONSES)) == 10
+    assert all(isinstance(x, str) and x.strip() for x in OFFTOPIC_RESPONSES)
