@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 CITIES = ["taganrog", "rostov-na-donu", "azov"]
-CATEGORIES = ["table", "chair", "lamp"]
+CATEGORIES = ["table", "chair", "lamp", "unsupported_category"]
 OPS = ("lt", "lte", "gt", "gte", "eq")
 
 
@@ -25,6 +25,7 @@ class Conditions:
     budget_rub: Optional[int] = None
     categories: Optional[list[str]] = None
     constraints: list[Constraint] = field(default_factory=list)
+    unsupported_categories: list[str] = field(default_factory=list)
 
 
 @dataclass

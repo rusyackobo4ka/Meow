@@ -1,13 +1,11 @@
-@"
-venv/
+# Окружение и секреты
 .venv/
+venv/
 .env
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
-"@ | Out-File -Encoding utf8 .gitignore
-.env.example
-.env
-__pycache__/
 

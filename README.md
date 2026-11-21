@@ -13,6 +13,9 @@
 ./run --catalog /absolute/path/catalog.json < request.json > response.json
 ```
 
+Эквивалентные варианты: `python3 main.py --catalog ...` (обёртка) или
+`python3 -m meow --catalog ...` (напрямую из пакета).
+
 - Вход: один JSON-объект до EOF; выход: один JSON-объект до завершения процесса.
 - В stdout — только ответ; логи — в stderr. Успешная обработка — код 0,
   ошибка запуска или внешнего сервиса — ненулевой код.
@@ -44,18 +47,32 @@
 
 ## Структура
 
-| Модуль | Ответственность |
-| --- | --- |
-| `config.py` | Конфигурация из env: `LLMConfig`, `AppConfig` (единственное место чтения окружения) |
-| `llm_client.py` | Чистый HTTP-клиент модели, конфиг приходит снаружи |
-| `extract.py` | Диалог → структурированные условия (`Conditions`) через LLM |
-| `catalog.py` | Загрузка и фильтрация объявлений каталога |
-| `selector.py` | Подбор комплектов в пределах бюджета |
-| `dialog.py` | Вопросы для `clarify`, объяснения, сборка JSON-ответа |
-| `assistant.py` | Оркестрация модулей (`BuyerAssistant`) |
-| `main.py` | Точка входа; composition root: env → граф объектов → обработка запроса |
+```
+Meow/
+├── main.py            # шов-обёртка для ./run (делегирует в meow.main)
+├── meow/              # пакет приложения
+│   ├── main.py        # composition root: env → граф объектов → обработка запроса
+│   ├── assistant.py   # оркестрация модулей (BuyerAssistant)
+│   ├── models.py      # общие типы данных (Conditions, Listing, Kit, Question)
+│   ├── config.py      # конфигурация из env: LLMConfig, AppConfig
+│   ├── env_loader.py  # локальная загрузка .env рядом с репозиторием
+│   ├── llm_client.py  # чистый HTTP-клиент модели, конфиг приходит снаружи
+│   ├── extract.py     # диалог → структурированные условия (Conditions) через LLM
+│   ├── catalog.py     # загрузка и фильтрация объявлений каталога
+│   ├── selector.py    # подбор комплектов в пределах бюджета
+│   └── dialog.py      # вопросы для clarify, объяснения, сборка JSON-ответа
+├── data/
+│   └── cities.json    # справочник городов
+├── tests/             # pytest-тесты (живые — при наличии LLM_* окружения)
+├── run                # точка входа: python3 main.py "$@"
+└── requirements.txt
+```
 
-Сборка графа объектов делается только в `main.build_assistant`: доменные классы не
+Модули импортируют друг друга через абсолютные пути пакета
+(`from meow.catalog import Catalog` и т.п.), поэтому работает любой способ запуска:
+`./run`, `python3 main.py`, `python3 -m meow`, `pytest` из корня репозитория.
+
+Сборка графа объектов делается только в `meow.main.build_assistant`: доменные классы не
 читают окружение и не создают свои зависимости сами.
 
 ## Тесты

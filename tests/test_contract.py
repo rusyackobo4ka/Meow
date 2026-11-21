@@ -10,11 +10,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from assistant import BuyerAssistant  # noqa: E402
-from config import LLMConfig  # noqa: E402
-from extract import ConditionExtractor  # noqa: E402
-from llm_client import LLMClient  # noqa: E402
-from models import Conditions, Kit, Listing, Question  # noqa: E402
+from meow.assistant import BuyerAssistant  # noqa: E402
+from meow.config import LLMConfig  # noqa: E402
+from meow.extract import ConditionExtractor  # noqa: E402
+from meow.llm_client import LLMClient  # noqa: E402
+from meow.models import Conditions, Kit, Listing, Question  # noqa: E402
 
 
 # ---- стабы зависимостей ----

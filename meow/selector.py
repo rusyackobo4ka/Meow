@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from itertools import product
 
-from models import Conditions, Kit, Listing
+from meow.models import Conditions, Kit, Listing
 
 
 class KitSelector:

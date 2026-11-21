@@ -8,10 +8,10 @@ import time
 
 import pytest
 
-from config import AppConfig
-from env_loader import bootstrap_env
-from extract import ConditionExtractor
-from llm_client import LLMClient
+from meow.config import AppConfig
+from meow.env_loader import bootstrap_env
+from meow.extract import ConditionExtractor
+from meow.llm_client import LLMClient
 
 
 def U(text): return {"role": "user", "text": text}
