@@ -137,7 +137,7 @@ class DialogManager:
         return response
 
     def off_topic_response(self) -> str:
-        offtopic_responses = [
+        RESPONSES = [
             "Похоже, этот вопрос выходит за рамки моей текущей задачи. Давайте вернёмся к основной теме — чем я могу помочь вам по ней?",
             "Я не смогу подробно ответить на этот вопрос в рамках текущей задачи. Продолжим работу над основной темой?",
             "Интересный вопрос, но сейчас мы сфокусированы на другом. Подскажите, с чем помочь дальше по текущей теме?",
@@ -201,11 +201,6 @@ class ResponseBuilder:
 
     def offtop(self, message: str) -> dict:
         LLMAnswer = {
-            "status": "clarify",
-            "questions": [
-                {
-                    "status": "off-topic",
-                    "message": message
-                }
-            ]
+            "status": "off-topic",
+            "message": message
         }
