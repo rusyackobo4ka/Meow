@@ -1,5 +1,12 @@
 # Meow
 
+#TODO:{ 
+       update readme, 
+       add llm answer logic -> remove templates,
+       validate all methods, logic,
+       
+}
+
 Ассистент-подборщик комплектов мебели (стол + стул + лампа) по каталогу объявлений.
 Один вызов обрабатывает один запрос покупателя и возвращает `clarify`, `ok` или `no_match`.
 
