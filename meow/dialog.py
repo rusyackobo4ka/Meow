@@ -33,7 +33,7 @@ class DialogManager:
             questions.append(Question("budget_rub", QUESTION_TEXTS["budget_rub"]))
         # categories: вопрос нужен, если категории не известны или покупатель назвал
         # неподдерживаемые товары («диван», «шкаф») — их по ТЗ нужно явно уточнить.
-        if cond.categories is None or cond.unsupported_categories:
+        if not cond.categories or cond.unsupported_categories:
             questions.append(Question("categories", self._categories_question(cond)))
 
         return questions
