@@ -26,14 +26,17 @@ class BuyerAssistant:
         """Один запрос -> один ответ (clarify, ok или no_match)."""
         cond = self.extractor.extract(request["messages"])
 
-        questions = self.dialog.find_missing(cond)
-        if questions:
-            return self.builder.clarify(questions)
+        if not cond.off_topic:
+            questions = self.dialog.find_missing(cond)
+            if questions:
+                return self.builder.clarify(questions)
 
-        candidates = self.catalog.candidates(cond)
-        kits = self.selector.select(candidates, cond)
-        if not kits:
-            return self.builder.no_match(self.dialog.no_match_message(cond))
+            candidates = self.catalog.candidates(cond)
+            kits = self.selector.select(candidates, cond)
+            if not kits:
+                return self.builder.no_match(self.dialog.no_match_message(cond))
 
-        explanations = [self.dialog.explain(k, cond) for k in kits]
-        return self.builder.ok(kits, explanations)
+            explanations = [self.dialog.explain(k, cond) for k in kits]
+            return self.builder.ok(kits, explanations)
+        else:
+            return self.builder.offtop(self.dialog.off_topic_response())
