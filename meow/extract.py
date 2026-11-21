@@ -48,10 +48,11 @@ city_id, budget_rub, categories, unsupported_categories, constraints.
 Единицы: 1 м = 100 см («полтора метра» = 150); «15 тысяч», «15к» = 15000.
 Значение -1 используется только для budget_rub. В constraints отрицательных значений нет.
 «без регулировки» -> value 0, «с регулировкой» -> value 1.
+only_llm_answer -> только False или True
 
 Примеры ответа:
 {"city_id":"azov","budget_rub":8000,"categories":["table","lamp"],"unsupported_categories":[],"constraints":[{"category":"table","key":"width_cm","op":"lte","value":100}]}
-{"city_id":"taganrog","budget_rub":20000,"categories":["table"],"unsupported_categories":["диван"],"constraints":[]}
+{"city_id":"taganrog","budget_rub":20000,"categories":["table"],"unsupported_categories":[],"only_llm_answers":False,"unsupported_categories":["диван"],"constraints":[]}
 """
 
 
@@ -123,15 +124,14 @@ class ConditionExtractor:
         cats = data.get("categories")
         unsupported = data.get("unsupported_categories")
         if isinstance(cats, list):
-            cats = [c for c in dict.fromkeys(x for x in cats if isinstance(x, str)) if c in CATEGORIES]
-            cats = cats or None
+            cats = [c for c in dict.fromkeys(x for x in cats if isinstance(x, str))
+            if c in CATEGORIES and c != "unsupported_category"]
         else:
             cats = None
         if isinstance(unsupported, list):
-            unsupported = [s.strip() for s in unsupported if isinstance(s, str) and s.strip()][:6]
+            unsupported = [s.strip()[:40] for s in unsupported if isinstance(s, str) and s.strip()][:6]
         else:
             unsupported = []
-
 
         constraints: list[Constraint] = []
         raw_constraints = data.get("constraints")
