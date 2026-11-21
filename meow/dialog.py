@@ -1,7 +1,7 @@
 """Разработчик 4: диалог (вопросы, объяснения) и сборка JSON-ответа."""
 from __future__ import annotations
 
-from models import Conditions, Kit, Question
+from meow.models import Conditions, Kit, Question
 
 
 class DialogManager:
@@ -20,7 +20,7 @@ class DialogManager:
 
     def find_missing(self, cond: Conditions) -> list[Question]:
         """Вопросы для clarify по недостающим budget_rub, city_id, categories (каждое поле один раз)."""
-
+        
         questions = []
         QUESTION_TEXTS = {
             "budget_rub": "Какой у вас бюджет на весь комплект, в рублях?",
@@ -32,6 +32,9 @@ class DialogManager:
         if cond.budget_rub is None:
             questions.append(Question("budget_rub", QUESTION_TEXTS["budget_rub"]))
         if cond.categories is None:
+            # вот тут логика сломается, если юзер дал диван и магазин, то категорис не будет 
+            # None, я добавлю отдельное поле unsupported_categories (по тз оно есть) в класс кондиции
+            # Литвина
             questions.append(Question("categories", QUESTION_TEXTS["categories"]))
 
         return questions

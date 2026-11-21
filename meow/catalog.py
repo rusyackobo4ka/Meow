@@ -1,7 +1,7 @@
 """Разработчик 2: каталог и фильтрация объявлений."""
 from __future__ import annotations
 
-from models import Conditions, Listing
+from meow.models import Conditions, Listing
 import json
 
 

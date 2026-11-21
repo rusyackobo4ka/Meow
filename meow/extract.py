@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from models import Conditions, Constraint, CITIES, CATEGORIES, OPS
-from llm_client import LLMClient
+from meow.models import Conditions, Constraint, CITIES, CATEGORIES, OPS
+from meow.llm_client import LLMClient
 import sys
 
 
@@ -12,17 +12,21 @@ KEY_BY_CAT = {
 }
 BOOL_KEYS = {"adjustable_height"}
 
+
 SYSTEM_PROMPT = """Ты извлекаешь условия покупки мебели из диалога покупателя с помощником.
-Верни ТОЛЬКО JSON одной строкой, без пояснений, с ровно четырьмя ключами:
-city_id, budget_rub, categories, constraints.
+Верни ТОЛЬКО JSON одной строкой, без пояснений, с ровно пятью ключами:
+city_id, budget_rub, categories, unsupported_categories, constraints.
 
 Правила:
 1. Учитывай ВСЮ историю. Новая реплика покупателя заменяет только то условие, которое она меняет, остальные сохраняются.
 2. Короткий ответ («15 тысяч», «Азов») относится к вопросу помощника в предыдущей реплике.
 3. Условия берутся только из реплик покупателя. Ничего не выдумывай и не подставляй значения по умолчанию.
-4. Если значение не названо, неоднозначно или не из списка (другой город, шкаф и т.п.):
-   city_id = "unknown", budget_rub = -1, categories = []. Неподдерживаемые товары в categories не добавляй.
-5. constraints: если ограничений нет, верни [].
+4. Если значение не названо, неоднозначно или город не из списка:
+   city_id = "unknown", budget_rub = -1, categories = [].
+5. Товар не из списка категорий (диван, шкаф, полка и т.п.) не добавляй в categories. Запиши его в unsupported_categories коротким словом покупателя в начальной форме («диван», «шкаф»).
+   Если покупатель позже отказался от такого товара или заменил его поддерживаемым («тогда просто стол»), в unsupported_categories его уже нет.
+   Если неподдерживаемых товаров нет, unsupported_categories = [].
+6. constraints: если ограничений нет, верни [].
 
 Города: Таганрог -> taganrog, Ростов / Ростов-на-Дону -> rostov-na-donu, Азов -> azov.
 Категории (латиницей): стол -> table, стул / кресло -> chair, лампа / светильник -> lamp.
@@ -31,8 +35,9 @@ city_id, budget_rub, categories, constraints.
 «без регулировки» -> value 0, «с регулировкой» -> value 1.
 «уже 120 см» -> op lt, value 120 (не lte). «шире 100 см» -> op gt, value 100 (не gte).
 
-Пример ответа:
-{"city_id":"azov","budget_rub":8000,"categories":["table","lamp"],"constraints":[{"category":"table","key":"width_cm","op":"lte","value":100}]}
+Примеры ответа:
+{"city_id":"azov","budget_rub":8000,"categories":["table","lamp"],"unsupported_categories":[],"constraints":[{"category":"table","key":"width_cm","op":"lte","value":100}]}
+{"city_id":"taganrog","budget_rub":20000,"categories":["table"],"unsupported_categories":["диван"],"constraints":[]}
 """
 
 EXTRACT_SCHEMA = {
@@ -44,6 +49,11 @@ EXTRACT_SCHEMA = {
             "type": "array",
             "maxItems": 3,
             "items": {"type": "string", "enum": list(CATEGORIES)},
+        },
+        "unsupported_categories" : {
+            "type" : "array",
+            "maxItems" : 6,
+            "items" : {"type": "string", "maxLength" : 40},
         },
         "constraints": {
             "type": "array",
@@ -61,7 +71,7 @@ EXTRACT_SCHEMA = {
             },
         },
     },
-    "required": ["city_id", "budget_rub", "categories", "constraints"],
+    "required": ["city_id", "budget_rub", "categories", "constraints", "unsupported_categories"],
     "additionalProperties": False,
 }
 
@@ -94,15 +104,20 @@ class ConditionExtractor:
         if isinstance(budget, bool) or not isinstance(budget, int) or budget < 0:
             budget = None
 
-        # категории: [] -> None
+        # категории: [] -> unsupported_categories
         cats = data.get("categories")
+        unsupported = data.get("unsupported_categories")
         if isinstance(cats, list):
-            cats = [c for c in dict.fromkeys(cats) if c in CATEGORIES]
+            cats = [c for c in dict.fromkeys(x for x in cats if isinstance(x, str)) if c in CATEGORIES]
             cats = cats or None
         else:
             cats = None
+        if isinstance(unsupported, list):
+            unsupported = [s.strip() for s in unsupported if isinstance(s, str) and s.strip()][:6]
+        else:
+            unsupported = []
 
-        # ограничения
+
         constraints: list[Constraint] = []
         raw_constraints = data.get("constraints")
         if not isinstance(raw_constraints, list):
@@ -115,7 +130,7 @@ class ConditionExtractor:
             if cat not in CATEGORIES or KEY_BY_CAT.get(cat) != key or op not in OPS:
                 continue
             if key in BOOL_KEYS:
-                if val in (0, 1):          # True/False тоже сюда попадают
+                if val in (0, 1):
                     val = bool(val)
                 else:
                     continue
@@ -128,4 +143,4 @@ class ConditionExtractor:
                 continue
             constraints.append(Constraint(cat, key, op, val))
 
-        return Conditions(city, budget, cats, constraints)
+        return Conditions(city, budget, cats, constraints, unsupported_categories=unsupported)

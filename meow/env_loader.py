@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-ENV_FILE = Path(__file__).resolve().parent / ".env"
+ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 
 
 def bootstrap_env(path: str | os.PathLike | None = None) -> None:

@@ -1,10 +1,10 @@
 """Главный класс: связывает все модули. Бизнес-логики здесь нет, только порядок вызовов."""
 from __future__ import annotations
 
-from catalog import Catalog
-from dialog import DialogManager, ResponseBuilder
-from extract import ConditionExtractor
-from selector import KitSelector
+from meow.catalog import Catalog
+from meow.dialog import DialogManager, ResponseBuilder
+from meow.extract import ConditionExtractor
+from meow.selector import KitSelector
 
 
 class BuyerAssistant:
