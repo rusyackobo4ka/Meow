@@ -17,6 +17,7 @@ class DialogManager:
         "chair": "Стул",
         "lamp": "Лампа"
     }
+    CATEGORY_ACC = {"table": "стол", "chair": "кресло", "lamp": "лампу"}
 
     def find_missing(self, cond: Conditions) -> list[Question]:
         """Вопросы для clarify по недостающим budget_rub, city_id, categories (каждое поле один раз)."""
@@ -25,19 +26,36 @@ class DialogManager:
         QUESTION_TEXTS = {
             "budget_rub": "Какой у вас бюджет на весь комплект, в рублях?",
             "city_id": "В каком городе вам удобен самовывоз? Доступны Таганрог, Ростов-на-Дону и Азов.",
-            "categories": "Какие предметы вам нужны? Можно выбрать стол, кресло и лампу.",
         }
         if cond.city_id is None:
             questions.append(Question("city_id", QUESTION_TEXTS["city_id"]))
         if cond.budget_rub is None:
             questions.append(Question("budget_rub", QUESTION_TEXTS["budget_rub"]))
-        if cond.categories is None:
-            # вот тут логика сломается, если юзер дал диван и магазин, то категорис не будет 
-            # None, я добавлю отдельное поле unsupported_categories (по тз оно есть) в класс кондиции
-            # Литвина
-            questions.append(Question("categories", QUESTION_TEXTS["categories"]))
+        # categories: вопрос нужен, если категории не известны или покупатель назвал
+        # неподдерживаемые товары («диван», «шкаф») — их по ТЗ нужно явно уточнить.
+        if cond.categories is None or cond.unsupported_categories:
+            questions.append(Question("categories", self._categories_question(cond)))
 
         return questions
+
+    def _categories_question(self, cond: Conditions) -> str:
+        """Текст вопроса по категориям: generic или с упоминанием неподдерживаемых товаров."""
+        if not cond.unsupported_categories:
+            return "Какие предметы вам нужны? Можно выбрать стол, кресло и лампу."
+
+        unsupported = ", ".join(f"«{s}»" for s in cond.unsupported_categories)
+        available = "стол, кресло и лампу"
+        if cond.categories:
+            names = [self.CATEGORY_ACC[c] for c in cond.categories]
+            chosen = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " и " + names[-1]
+            return (
+                f"Такое я не подбираю: {unsupported}. Могу подобрать {available}. "
+                f"Подобрать только {chosen} или добавить что-то из этого списка?"
+            )
+        return (
+            f"Такое я не подбираю: {unsupported}. Могу подобрать {available}. "
+            "Что вам подобрать?"
+        )
 
     def explain(self, kit: Kit, cond: Conditions) -> str:
         """Понятное объяснение комплекта на данных каталога (цена, город, характеристики)."""

@@ -13,7 +13,7 @@ CALL_TIMEOUT_S = 60
 TOTAL_DEADLINE_S = 100          # запас до лимита 120 с на весь run
 MAX_TEXT_BYTES = 32768          # сумма content всех сообщений
 MAX_BODY_BYTES = 65536          # весь JSON-запрос
-RETRY_CODES = {429, 503}        # 502 лечит fallback на json_object, а не повтор
+RETRY_CODES = {429, 503}
 MAX_ATTEMPTS = 3
 TEMPERATURE = 0                 # стабильное извлечение условий
 EXPECTED_MODEL = "google/gemma-4-31B-it"
@@ -24,7 +24,7 @@ class LLMError(RuntimeError):
 
 
 class LLMFormatError(LLMError):
-    """Ответ пришёл, но содержимое непригодно (не JSON, не объект, нет ключей)."""
+    pass
 
 
 class LLMClient:
@@ -32,9 +32,9 @@ class LLMClient:
         self.config = config
         self._started = time.monotonic()
         if config.model != EXPECTED_MODEL:
-            print("предупреждение: модель " + str(config.model)
-                  + " отличается от ожидаемой " + EXPECTED_MODEL,
-                  file=sys.stderr)
+            raise LLMError(
+            f"Unsupported model: {config.model}"
+    )
 
     def complete_json(self, messages: list[dict], schema: dict, max_tokens: int = 256) -> dict:
         text_bytes = sum(len(m["content"].encode("utf-8")) for m in messages)
@@ -54,7 +54,7 @@ class LLMClient:
         except LLMFormatError as exc:
             reason = exc
         except LLMError as exc:
-            if exc.status not in (400, 502):
+            if exc.status not in (400,):
                 raise
             reason = exc
 
@@ -113,7 +113,6 @@ class LLMClient:
                         pause = 2.0
                     left = TOTAL_DEADLINE_S - (time.monotonic() - self._started)
                     if pause >= left - CALL_TIMEOUT_S * 0 - 1:
-                        # ждать дольше остатка дедлайна нет смысла
                         err = LLMError("HTTP " + str(exc.code)
                                        + ": Retry-After не укладывается в дедлайн")
                         err.status = exc.code
