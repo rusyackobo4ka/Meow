@@ -25,7 +25,6 @@ class LLMConfig:
 
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> "LLMConfig":
-        """Читает os.environ (или переданный dict для тестов)."""
         env = os.environ if env is None else env
 
         missing = [k for k in REQUIRED_ENV if not (env.get(k) or "").strip()]

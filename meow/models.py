@@ -26,7 +26,6 @@ class Conditions:
     categories: Optional[list[str]] = None
     constraints: list[Constraint] = field(default_factory=list)
     unsupported_categories: list[str] = field(default_factory=list)
-    off_topic: Optional[bool] = False
 
 
 @dataclass
