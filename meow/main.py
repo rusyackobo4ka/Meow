@@ -7,7 +7,6 @@ from meow.assistant import BuyerAssistant
 from meow.catalog import Catalog
 from meow.config import AppConfig, ConfigError
 from meow.dialog import DialogManager, ResponseBuilder
-from meow.env_loader import bootstrap_env  # локальная удобность, опционально
 from meow.extract import ConditionExtractor
 from meow.llm_client import LLMClient
 from meow.selector import KitSelector
@@ -28,8 +27,6 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--catalog", required=True)
     args = parser.parse_args()
-
-    bootstrap_env()
 
     try:
         config = AppConfig.from_env()
