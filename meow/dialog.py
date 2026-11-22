@@ -115,24 +115,69 @@ class DialogManager:
 
         return response
 
-    def no_match_message(self, cond: Conditions) -> str:
-        """Что мешает найти комплект и что покупатель может изменить."""
-
+    def no_match_message(self, cond: Conditions, catalog) -> str:
+        """Что именно мешает и что покупатель может изменить — с конкретными числами."""
         names = [self.CATEGORY_NAMES[c].lower() for c in cond.categories]
-        budget = f"{cond.budget_rub:,}".replace(',', ' ')
-        response = f"В {self.CITY_NAMES[cond.city_id]} не нашлось полного комплекта ({', '.join(names)}) в бюджете {budget} ₽"
-        if cond.constraints:
-            response += " с вашими ограничениями по характеристикам. "
-        else:
-            response += ". "
+        budget = f"{cond.budget_rub:,}".replace(",", "\u00A0")
+        prefix = (
+            f"В {self.CITY_NAMES[cond.city_id]} не нашлось полного комплекта "
+            f"({', '.join(names)}) в бюджете {budget} ₽"
+        )
 
-        options = ["увеличить бюджет", "рассмотреть другой город"]
-        if cond.constraints:
-            options.append("смягчить ограничения")
+        # Снимаем ТОЛЬКО бюджет, оставляем город и ограничения
+        relaxed = Conditions(
+            city_id=cond.city_id,
+            budget_rub=None,
+            categories=cond.categories,
+            constraints=list(cond.constraints),
+        )
+        cands = catalog.candidates(relaxed)
 
-        response += f"Можно {', '.join(options[:-1])} или {options[-1]}. Скажите, что вам подходит."     
+        missing = [c for c in cond.categories if not cands.get(c)]
+        if missing:
+            # Что-то отсекли ограничения или в городе вообще нет товаров
+            no_cons = Conditions(
+                city_id=cond.city_id,
+                budget_rub=None,
+                categories=cond.categories,
+                constraints=[],
+            )
+            cands_nc = catalog.candidates(no_cons)
+            truly_missing = [c for c in cond.categories if not cands_nc.get(c)]
 
-        return response
+            if truly_missing:
+                names_missing = ", ".join(self.CATEGORY_NAMES[c].lower() for c in truly_missing)
+                return (
+                    prefix
+                    + f". В этом городе вообще нет подходящих объявлений: {names_missing}. "
+                    "Стоит рассмотреть другой город."
+                )
+
+            return (
+                prefix
+                + ". Ваши ограничения по характеристикам отсекают все варианты. "
+                "Попробуйте смягчить требования к ширине/высоте/цвету света."
+            )
+
+        # Все категории есть, значит блокирует бюджет
+        cheapest = [min(cands[c], key=lambda it: it.price_rub) for c in cond.categories]
+        need = sum(it.price_rub for it in cheapest)
+        need_str = f"{need:,}".replace(",", "\u00A0")
+
+        if cond.budget_rub is not None and need <= cond.budget_rub:
+            # страховка: сюда попадать не должны, но на всякий
+            return prefix + ". Попробуйте смягчить ограничения или рассмотреть другой город."
+
+        breakdown = ", ".join(
+            f"{self.CATEGORY_NAMES[it.category].lower()} «{it.title}» "
+            f"{it.price_rub:,} ₽".replace(",", "\u00A0")
+            for it in cheapest
+        )
+        return (
+            prefix
+            + f". Самый дешёвый подходящий комплект — {need_str} ₽ ({breakdown}). "
+            + f"Если поднять бюджет хотя бы до {need_str} ₽, комплект найдётся."
+        )
 
 class ResponseBuilder:
     """Собирает ответ строго по schemas/response.schema.json."""
@@ -180,5 +225,3 @@ class ResponseBuilder:
         }
 
         return LLMAnswer
-    
-   
