@@ -1,20 +1,64 @@
 
+
 import json
 import subprocess
 import sys
 from pathlib import Path
 
 
+# ---------- Цвета ----------
+
+USE_COLOR = sys.stdout.isatty() or sys.stderr.isatty()
+
+def color(code, text):
+    if not USE_COLOR:
+        return text
+    return f"\033[{code}m{text}\033[0m"
+
+
+CYAN = "96"
+BLUE = "94"
+GREEN = "92"
+YELLOW = "93"
+RED = "91"
+GRAY = "90"
+BOLD = "1"
+PURPLE = "95"
+
+
+def title(text):
+    print(color(BOLD + CYAN, text))
+
+
+def success(text):
+    print(color(GREEN, text))
+
+
+def warning(text):
+    print(color(YELLOW, text))
+
+
+def error(text):
+    print(color(RED, text), file=sys.stderr)
+
+
+# ---------- Форматирование ответов ----------
+
 def response_text(response: dict) -> str:
-    """Преобразует JSON-ответ run в обычный текст."""
+    """Обычный текст ответа для сохранения в историю."""
 
     status = response.get("status", "unknown")
 
     if status == "clarify":
         questions = response.get("questions", [])
         if questions:
-            return "\n".join(q.get("text", "") for q in questions)
-        return response.get("message", "Уточни, пожалуйста, детали запроса.")
+            return "\n".join(
+                q.get("text", "") for q in questions
+            )
+        return response.get(
+            "message",
+            "Уточни, пожалуйста, детали запроса."
+        )
 
     if status == "no_match":
         return response.get(
@@ -24,71 +68,151 @@ def response_text(response: dict) -> str:
 
     if status == "ok":
         options = response.get("options", [])
-
         if not options:
             return "Подходящих вариантов не найдено."
 
-        lines = [f"Нашёл {len(options)} вариантов:\n"]
+        lines = []
 
         for i, option in enumerate(options, 1):
-            total = option.get("total_rub", 0)
-            listing_ids = option.get("listing_ids", [])
-            explanation = option.get("explanation", "")
+            lines.append(
+                f"Вариант {i}: {option.get('explanation', '')}"
+            )
+            lines.append(
+                f"ID: {', '.join(option.get('listing_ids', []))}"
+            )
+            lines.append(
+                f"Итого: {option.get('total_rub', 0)} рублей"
+            )
 
-            lines.append(f"{i}. {explanation}")
+        return "\n".join(lines)
 
-            if listing_ids:
-                lines.append(
-                    f"   ID объявлений: {', '.join(listing_ids)}"
+    return response.get(
+        "message",
+        "Не удалось обработать запрос."
+    )
+
+
+def print_response(response: dict):
+    """Красивый вывод ответа в терминал."""
+
+    status = response.get("status", "unknown")
+
+    print()
+    title("  MEOW")
+    print(color(GRAY, "  " + "─" * 42))
+
+    if status == "clarify":
+        questions = response.get("questions", [])
+
+        warning("  Нужно немного уточнить:")
+        print()
+
+        for i, question in enumerate(questions, 1):
+            print(
+                color(BOLD + PURPLE, f"  {i}. ")
+                + question.get("text", "")
+            )
+
+    elif status == "no_match":
+        warning("  Подходящих вариантов не найдено.")
+        print()
+        print("  " + response.get("message", ""))
+
+    elif status == "ok":
+        options = response.get("options", [])
+
+        if not options:
+            warning("  Подходящих вариантов не найдено.")
+        else:
+            success(f"  Нашёл вариантов: {len(options)}")
+            print()
+
+            for i, option in enumerate(options, 1):
+                print(color(BOLD + BLUE, f"  ┌─ ВАРИАНТ {i}"))
+
+                explanation = option.get("explanation", "")
+                print(f"  │  {explanation}")
+
+                listing_ids = option.get("listing_ids", [])
+                if listing_ids:
+                    print(
+                        color(GRAY, "  │  ID: ")
+                        + ", ".join(listing_ids)
+                    )
+
+                total = option.get("total_rub", 0)
+                formatted_total = f"{total:,}".replace(",", " ")
+
+                print(
+                    color(BOLD + GREEN, "  │  Итого: ")
+                    + color(BOLD + GREEN, f"{formatted_total} ₽")
                 )
 
-            lines.append(f"   Итого: {total:,} ₽".replace(",", " "))
-            lines.append("")
+                print(color(BLUE, "  └" + "─" * 30))
+                print()
 
-        return "\n".join(lines).strip()
+    else:
+        error("  Не удалось обработать запрос.")
+        print(response.get("message", ""))
 
-    return response.get("message", "Не удалось обработать запрос.")
+    print(color(GRAY, "  " + "─" * 42))
+    print()
 
+
+# ---------- Основная программа ----------
 
 def main():
     if len(sys.argv) < 2:
-        print("Использование: python chat.py <путь_к_каталогу>")
+        error("Использование: python chat.py <путь_к_каталогу>")
         return
 
     catalog = Path(sys.argv[1]).resolve()
 
     if not catalog.exists():
-        print(f"Каталог не найден: {catalog}")
+        error(f"Каталог не найден: {catalog}")
         return
 
     run_path = Path(__file__).parent / "run"
 
     if not run_path.exists():
-        print(f"Не найден файл запуска: {run_path}")
+        error(f"Не найден файл запуска: {run_path}")
         return
 
     messages = []
 
-    print("\n=== Meow — подбор товаров ===")
-    print("Напиши запрос. Для выхода введи exit или quit.\n")
+    print()
+    print(color(BOLD + CYAN, "  ╔══════════════════════════════════════╗"))
+    print(color(BOLD + CYAN, "  ║           MEOW - BUYER AI            ║"))
+    print(color(BOLD + CYAN, "  ╚══════════════════════════════════════╝"))
+    print()
+    print(color(GRAY, "  Умный помощник по подбору товаров"))
+    print(color(GRAY, "  Напиши запрос или введи exit для выхода."))
+    print()
 
     while True:
         try:
-            user_text = input("Вы: ").strip()
+            user_text = input(
+                color(BOLD + GREEN, "  Вы  ❯ ")
+            ).strip()
+
         except (KeyboardInterrupt, EOFError):
-            print("\nДо встречи!")
+            print()
+            success("  До встречи! 🐾")
             break
 
         if not user_text:
             continue
 
         if user_text.lower() in ("exit", "quit", "выход"):
-            print("До встречи!")
+            print()
+            success("  До встречи! 🐾")
             break
-        if user_text.lower() in ("спасибо",):
-            print("Meow: Пожалйста!")
-            continue
 
+        if user_text.lower() == "спасибо":
+            print()
+            print(color(BOLD + CYAN, "  Meow ❯ ") + "Пожалуйста! 🐾")
+            print()
+            continue
 
         messages.append({
             "role": "user",
@@ -111,7 +235,7 @@ def main():
             )
 
             if result.returncode != 0:
-                print("Ошибка запуска:")
+                error("  Ошибка запуска:")
                 print(result.stderr)
                 messages.pop()
                 continue
@@ -119,19 +243,18 @@ def main():
             response = json.loads(result.stdout)
 
         except json.JSONDecodeError:
-            print("Ошибка: run вернул некорректный JSON.")
+            error("  run вернул некорректный JSON.")
             messages.pop()
             continue
+
         except Exception as e:
-            print(f"Ошибка: {e}")
+            error(f"  Ошибка: {e}")
             messages.pop()
             continue
+
+        print_response(response)
 
         answer = response_text(response)
-
-        print("\nMeow:")
-        print(answer)
-        print()
 
         messages.append({
             "role": "assistant",
@@ -141,3 +264,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
