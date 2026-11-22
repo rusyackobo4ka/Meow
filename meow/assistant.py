@@ -32,7 +32,7 @@ class BuyerAssistant:
         candidates = self.catalog.candidates(cond)
         kits = self.selector.select(candidates, cond)
         if not kits:
-            return self.builder.no_match(self.dialog.no_match_message(cond))
+            return self.builder.no_match(self.dialog.no_match_message(cond, self.catalog))
 
         explanations = [self.dialog.explain(k, cond) for k in kits]
         return self.builder.ok(kits, explanations)
